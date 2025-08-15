@@ -1,0 +1,1095 @@
+╭───────────────────────────────────────────────────╮
+│ ✻ Welcome to Claude Code!                         │
+│                                                   │
+│   /help for help, /status for your current setup  │
+│                                                   │
+│   cwd: /home/saladass/crafts/int-1414-final       │
+╰───────────────────────────────────────────────────╯
+
+> explain the whole generation process of sparkov_gen
+
+● I'll analyze the sparkov_gen data generation process by examining the codebase structure and implementation.
+
+● Read(sparkov_gen)
+  ⎿  Error: EISDIR: illegal operation on a directory, read
+
+● Search(pattern: "sparkov_gen/**/*.py")
+  ⎿  Found 10 files (ctrl+r to expand)
+
+● Read(sparkov_gen/datagen.py)
+  ⎿  Read 133 lines (ctrl+r to expand)
+
+● Read(sparkov_gen/datagen_customer.py)
+  ⎿  Read 216 lines (ctrl+r to expand)
+
+● Read(sparkov_gen/datagen_transaction.py)
+  ⎿  Read 203 lines (ctrl+r to expand)
+
+● Read(sparkov_gen/profiles/main_config.json)
+  ⎿  Read 134 lines (ctrl+r to expand)
+
+● Read(sparkov_gen/profile_weights.py)
+  ⎿  Read 50 lines (ctrl+r to expand)
+
+● Sparkov_gen Data Generation Process
+
+  The sparkov_gen system generates realistic credit card transaction data with embedded fraud patterns through a sophisticated multi-stage process:
+
+  1. Architecture Overview
+
+  - Main entry point: datagen.py coordinates the entire generation process
+  - Customer generation: datagen_customer.py creates customer profiles with demographics
+  - Transaction generation: datagen_transaction.py produces transactions based on customer behavior profiles
+  - Profile system: JSON configuration files define spending patterns for different demographic segments
+
+  2. Customer Generation Process (datagen_customer.py)
+
+  Demographic Data Sources:
+  - Uses real demographic data from demographic_data/age_gender_demographics.csv for realistic age/gender distributions
+  - Sources location data from demographic_data/locations_partitions.csv for geographic distribution
+
+  Customer Creation:
+  - Generates realistic personal data using the Faker library (SSN, credit card numbers, names, addresses)
+  - Assigns customers to demographic profiles based on age, gender, and city population
+  - Creates 12 distinct demographic segments (young adults/adults 25-50/adults 50+ × male/female × urban/rural)
+
+  3. Profile Matching System
+
+  Each customer is automatically assigned to the appropriate profile based on:
+  - Age brackets: 0-25 (young adults), 25-50 (adults), 50+ (seniors)
+  - Gender: Male/Female
+  - Location: Urban (city population ≥ 2,500) or Rural (< 2,500)
+
+  4. Transaction Generation Process (datagen_transaction.py)
+
+  Behavior Modeling:
+  - Each profile contains detailed spending patterns including category preferences, shopping times, and seasonal variations
+  - Uses the Profile class from profile_weights.py to sample transactions based on weighted probabilities
+
+  Fraud Injection:
+  - Fraud probability: ~1% of customers get fraud transactions (configurable)
+  - Fraud window: 1-day concentrated fraud periods (was 7 days, optimized to 1)
+  - Fraud patterns: Separate fraud profiles define abnormal spending behavior
+  - Geographic modeling: Fraud transactions can occur at greater distances from home
+
+  Transaction Features:
+  - Realistic merchant assignment based on transaction categories
+  - Geographic constraints (transactions within reasonable radius of customer location)
+  - Temporal patterns (shopping times, seasonal variations)
+  - Amount modeling based on customer demographics
+
+  5. Parallel Processing Architecture (datagen.py)
+
+  Chunking Strategy:
+  - Divides customers into chunks for parallel processing across CPU cores
+  - Chunk sizes optimized to prevent core idling (smaller chunks ensure even workload distribution)
+  - Each demographic profile processed independently to maximize parallelization
+
+  Output Structure:
+  - Creates separate CSV files for each demographic profile and chunk
+  - Files named with pattern: {profile}_{start_offset}-{end_offset}.csv
+  - All files contain the same header structure for easy concatenation
+
+  6. Performance Characteristics
+
+  Scaling Metrics (from CLAUDE.md):
+  - Local performance: 1,220 customers/second (~28MB/second) on 16 CPU cores
+  - Data density: ~23KB per customer
+  - Parallelization: Linear scaling with CPU cores due to effective chunking strategy
+
+  The system's strength lies in its realistic demographic modeling, sophisticated fraud pattern injection, and highly parallel architecture that efficiently utilizes multi-core
+  systems for large-scale data generation.
+
+> what about other files ?
+
+● Let me examine the other files in the sparkov_gen directory to give you a complete picture of the generation process.
+
+● Read(sparkov_gen/profile_weights.py)
+  ⎿  Read 100 lines (ctrl+r to expand)
+
+● Read(sparkov_gen/main_config.py)
+  ⎿  Read 32 lines (ctrl+r to expand)
+
+● Read(sparkov_gen/static_merchant_generator.py)
+  ⎿  Read 34 lines (ctrl+r to expand)
+
+● Search(pattern: "sparkov_gen/profiles/*.json")
+  ⎿  Found 28 files (ctrl+r to expand)
+
+● Read(sparkov_gen/profiles/young_adults_male_urban.json)
+  ⎿  Read 30 lines (ctrl+r to expand)
+
+● Read(sparkov_gen/profiles/fraud_young_adults_male_urban.json)
+  ⎿  Read 30 lines (ctrl+r to expand)
+
+● Read(sparkov_gen/tests.py)
+  ⎿  Read 40 lines (ctrl+r to expand)
+
+● List(sparkov_gen/demographic_data)
+  ⎿  Listed 8 paths (ctrl+r to expand)
+
+● Complete Sparkov_gen Generation Process - All Components
+
+  Here's the comprehensive breakdown of all files and their roles in the data generation process:
+
+  Core Generation Files
+
+  datagen.py - Main orchestrator
+  - Entry point that coordinates customer and transaction generation
+  - Handles parallel processing with multiprocessing pools
+  - Manages chunking strategy for optimal CPU utilization
+
+  datagen_customer.py - Customer profile creation
+  - Generates realistic customer demographics using Faker library
+  - Assigns customers to behavioral profiles based on age/gender/location
+  - Creates customer database with SSN, credit cards, addresses, jobs, etc.
+
+  datagen_transaction.py - Transaction generation engine
+  - Creates transaction patterns based on customer profiles
+  - Implements fraud injection (1% of customers get fraud periods)
+  - Handles merchant assignment and geographic constraints
+
+  Profile System Files
+
+  profile_weights.py - Behavioral modeling engine
+  - Core Profile class that models customer spending behavior
+  - Handles temporal patterns (weekday preferences, seasonal variations, holidays)
+  - Manages category preferences and transaction amounts
+  - Converts profile weights to probability distributions for sampling
+
+  main_config.py - Profile configuration parser
+  - Loads and processes demographic profile configurations
+  - Converts JSON profile definitions into usable data structures
+  - Handles age ranges and city population thresholds
+
+  profiles/ directory - Contains 26+ JSON files:
+  - 12 regular profiles: e.g., young_adults_male_urban.json
+  - 12 fraud profiles: e.g., fraud_young_adults_male_urban.json
+  - Configuration: main_config.json (demographic matching rules)
+  - Fallback: leftovers.json for edge cases
+
+  Profile Structure Example
+
+  Each profile contains:
+  {
+    "avg_transactions_per_day": {"min": 0, "max": 6},
+    "date_wt": {
+      "day_of_week": {"friday": 180, "saturday": 250},
+      "time_of_year": {"holidays": {...}, "summer": {...}}
+    },
+    "categories_wt": {
+      "gas_transport": 200, "grocery_pos": 75, "entertainment": 120
+    },
+    "shopping_time": {...},
+    "amount": {...}
+  }
+
+  Fraud vs Regular Profiles:
+  - Regular: 0-6 transactions/day, balanced spending
+  - Fraud: 8-16 transactions/day, skewed toward online purchases and groceries
+
+  Supporting Files
+
+  static_merchant_generator.py - Merchant database creator
+  - Generates 500 fake merchants per category (8,000+ total)
+  - Creates realistic company names for 16 transaction categories
+  - Outputs to demographic_data/merchants.csv
+
+  tests.py - Unit testing framework
+  - Tests customer generation logic
+  - Validates profile assignment algorithms
+  - Ensures demographic distributions are correct
+
+  Demographic Data Files
+
+  demographic_data/age_gender_demographics.csv
+  - Real US Census demographic data
+  - Age/gender distribution probabilities
+  - Used for realistic customer age/gender assignment
+
+  demographic_data/locations_partitions.csv
+  - Geographic distribution data with population statistics
+  - City/state/coordinates with population sizes
+  - Enables realistic address assignment and urban/rural classification
+
+  demographic_data/merchants.csv
+  - Database of 8,000+ merchants across 16 categories
+  - Used for realistic merchant assignment in transactions
+  - Categories include gas_transport, grocery_pos, entertainment, etc.
+
+  Advanced Features
+
+  Temporal Modeling (profile_weights.py:50-149):
+  - Weekday patterns: Higher weekend shopping activity
+  - Seasonal variations: Holiday shopping spikes, summer travel increases
+  - Year-over-year trends: Multi-year pattern support
+  - Holiday handling: Special weights for specific date ranges
+
+  Geographic Constraints:
+  - Transactions occur within realistic radius of customer home
+  - Fraud transactions can have extended geographic range
+  - Urban vs rural customer behavior differences
+
+  Fraud Sophistication:
+  - Concentrated fraud windows (1-day periods)
+  - Different spending patterns during fraud periods
+  - Maintains realistic fraud rates (~1% of customers)
+  - Separate fraud behavioral profiles for each demographic
+
+  This system creates a highly realistic dataset that balances computational efficiency with behavioral authenticity, making it ideal for training fraud detection models on
+  large-scale, demographically diverse transaction data.
+
+> for the purpose of solely transaction generation, i only need to modify the sparkov_gen/datagen_customer.py and sparkov_gen/datagen_transaction.py ?
+
+● Not exactly. For transaction generation, you'd primarily need to modify:
+
+  Core files you'd definitely need to modify:
+  - sparkov_gen/datagen_transaction.py - Main transaction generation logic
+  - sparkov_gen/profile_weights.py - Transaction behavior modeling (amounts, timing, categories)
+
+  Profile files you'd likely need to modify:
+  - sparkov_gen/profiles/*.json - The 12 regular profiles and 12 fraud profiles that define spending behaviors
+
+  Files you probably wouldn't need to modify:
+  - sparkov_gen/datagen_customer.py - Only if you need different customer attributes or demographics
+  - sparkov_gen/main_config.py - Only if changing demographic segmentation rules
+  - sparkov_gen/datagen.py - Only if changing the orchestration/parallelization logic
+
+  Key insight: The transaction patterns, amounts, categories, and fraud behavior are primarily controlled by:
+
+  1. profile_weights.py - Contains the Profile class that handles:
+    - Transaction frequency sampling
+    - Category selection logic
+    - Amount generation algorithms
+    - Temporal pattern modeling
+  2. Profile JSON files - Define the parameters that profile_weights.py uses:
+    - avg_transactions_per_day
+    - categories_wt (category preferences)
+    - amount specifications
+    - shopping_time patterns
+
+  So if you want to modify transaction generation behavior (fraud patterns, spending amounts, category preferences, transaction timing), focus on profile_weights.py and the JSON
+  profile files rather than datagen_customer.py.
+
+> i want the data pattern to stay the same, but scale the genration process with Spark
+
+● Update Todos
+  ⎿  ☐ Analyze current sparkov_gen architecture to understand parallelization approach
+     ☐ Design Spark-based architecture for distributed transaction generation
+     ☐ Identify which components need modification for Spark integration
+     ☐ Plan data distribution strategy across Spark cluster
+
+● Update Todos
+  ⎿  ☐ Analyze current sparkov_gen architecture to understand parallelization approach
+     ☐ Design Spark-based architecture for distributed transaction generation
+     ☐ Identify which components need modification for Spark integration
+     ☐ Plan data distribution strategy across Spark cluster
+
+● To scale the generation process with Spark while keeping the same data patterns, you'll need to modify the architecture rather than the core generation logic. Here's the
+  approach:
+
+  Current Architecture Analysis:
+  - Uses Python multiprocessing with CPU-based chunking
+  - Chunks customers across demographic profiles for parallel processing
+  - Each chunk generates transactions independently
+
+  Spark Architecture Approach:
+
+  1. Customer Distribution: Distribute the customer CSV across Spark partitions instead of multiprocessing chunks
+  2. Core Files to Modify:
+    - datagen.py - Replace multiprocessing with Spark RDD/DataFrame operations
+    - Create new spark_datagen.py - Spark entry point
+  3. Files to Keep Unchanged:
+    - datagen_customer.py - Customer generation logic stays the same
+    - datagen_transaction.py - Transaction generation logic stays the same
+    - profile_weights.py - Behavioral modeling stays the same
+    - All profile JSON files - Data patterns stay identical
+
+  Key Changes Needed:
+
+  # Instead of multiprocessing Pool:
+  with Pool() as p:
+      p.starmap(datagen_transactions, args_array)
+
+  # Use Spark:
+  customer_rdd = spark.textFile("customers.csv")
+  transactions_rdd = customer_rdd.mapPartitions(process_customer_chunk)
+
+  Distribution Strategy:
+  - Partition customers by demographic profile (already naturally chunked)
+  - Each Spark worker processes a subset of customers using existing datagen_transaction.py logic
+  - Combine outputs across partitions
+
+  This approach leverages Spark's distributed computing while preserving all existing data generation patterns and fraud modeling. The core generation algorithms remain untouched -
+   only the orchestration layer changes from multiprocessing to Spark.
+
+● Update Todos
+  ⎿  ☒ Analyze current sparkov_gen architecture to understand parallelization approach
+     ☒ Design Spark-based architecture for distributed transaction generation
+     ☒ Identify which components need modification for Spark integration
+     ☒ Plan data distribution strategy across Spark cluster
+
+> an example synthetically generation as ingestion pipeline using the spark and write to parquet
+
+● Update Todos
+  ⎿  ☐ Create Spark-based synthetic data generation pipeline      
+     ☐ Implement customer generation as Spark DataFrame operations
+     ☐ Implement transaction generation with Spark UDFs
+     ☐ Add Parquet output with proper partitioning strategy
+     ☐ Create example pipeline script with configuration
+
+● Update Todos
+  ⎿  ☐ Create Spark-based synthetic data generation pipeline      
+     ☐ Implement customer generation as Spark DataFrame operations
+     ☐ Implement transaction generation with Spark UDFs
+     ☐ Add Parquet output with proper partitioning strategy
+     ☐ Create example pipeline script with configuration
+
+● I'll create a Spark-based synthetic data generation pipeline that integrates with the existing sparkov_gen components and outputs to Parquet format.
+
+● Write(spark_apps/spark_fraud_datagen.py)
+  ⎿  Wrote 342 lines to spark_apps/spark_fraud_datagen.py                            
+     #!/usr/bin/env python3
+     """
+     Spark-based Synthetic Fraud Data Generation Pipeline
+     Scales the sparkov_gen process using Apache Spark and outputs to Parquet format.
+     """
+     import sys
+     import os
+     import json
+     import random
+     … +332 lines (ctrl+r to expand)
+
+● Update Todos
+  ⎿  ☒ Create Spark-based synthetic data generation pipeline      
+     ☒ Implement customer generation as Spark DataFrame operations
+     ☒ Implement transaction generation with Spark UDFs
+     ☒ Add Parquet output with proper partitioning strategy
+     ☐ Create example pipeline script with configuration
+
+● Write(run_spark_datagen.sh)
+  ⎿  Wrote 225 lines to run_spark_datagen.sh                                                  
+     #!/bin/bash
+     # Spark Fraud Data Generation Pipeline Runner
+     # This script demonstrates different ways to run the Spark-based synthetic data generator
+     set -e
+     # Configuration
+     APP_NAME="FraudDataGenerator"
+     SPARK_MASTER=${SPARK_MASTER:-"local[*]"}
+     … +215 lines (ctrl+r to expand)
+
+● Bash(chmod +x /home/saladass/crafts/int-1414-final/run_spark_datagen.sh)
+  ⎿  (No content)
+
+● Write(spark_apps/spark_config.py)
+  ⎿  Wrote 154 lines to spark_apps/spark_config.py                             
+     """
+     Spark Configuration and Utilities for Fraud Data Generation
+     Provides optimized Spark configurations for different deployment scenarios
+     """
+     from pyspark.sql import SparkSession
+     from typing import Dict, Optional
+     class SparkConfig:
+     … +144 lines (ctrl+r to expand)
+
+● Write(examples/example_spark_datagen.py)
+  ⎿  Wrote 268 lines to examples/example_spark_datagen.py                     
+     #!/usr/bin/env python3
+     """
+     Example: Spark-based Synthetic Fraud Data Generation
+     Demonstrates various ways to use the Spark fraud data generation pipeline
+     """
+     import sys
+     import os
+     from datetime import datetime
+     from pathlib import Path
+     … +258 lines (ctrl+r to expand)
+
+● Bash(chmod +x /home/saladass/crafts/int-1414-final/examples/example_spark_datagen.py)
+  ⎿  (No content)
+
+● Write(docker-compose.spark.yml)
+  ⎿  User rejected write to docker-compose.spark.yml
+         1 +  # Extended Docker Compose for Spark-based data generation
+         2 +  # Includes additional services for data processing and storage
+         3 +  
+         4 +  version: '3.8'
+         5 +  
+         6 +  services:
+         7 +    spark-master:
+         8 +      image: bitnami/spark:3.5
+         9 +      container_name: spark-master
+        10 +      environment:
+        11 +        - SPARK_MODE=master
+        12 +        - SPARK_RPC_AUTHENTICATION_ENABLED=no
+        13 +        - SPARK_RPC_ENCRYPTION_ENABLED=no
+        14 +        - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+        15 +        - SPARK_SSL_ENABLED=no
+        16 +        - SPARK_MASTER_OPTS=-Dspark.deploy.defaultCores=4
+        17 +      ports:
+        18 +        - "9090:8080"  # Spark Master Web UI
+        19 +        - "7077:7077"  # Spark Master Port
+        20 +        - "6066:6066"  # Spark Master REST API
+        21 +      volumes:
+        22 +        - ./spark_data:/opt/spark_data
+        23 +        - ./spark_apps:/opt/spark_apps
+        24 +        - ./sparkov_gen:/opt/sparkov_gen
+        25 +        - ./examples:/opt/examples
+        26 +      networks:
+        27 +        - spark-network
+        28 +  
+        29 +    spark-worker-1:
+        30 +      image: bitnami/spark:3.5
+        31 +      container_name: spark-worker-1
+        32 +      environment:
+        33 +        - SPARK_MODE=worker
+        34 +        - SPARK_MASTER_URL=spark://spark-master:7077
+        35 +        - SPARK_WORKER_MEMORY=4G
+        36 +        - SPARK_WORKER_CORES=4
+        37 +        - SPARK_RPC_AUTHENTICATION_ENABLED=no
+        38 +        - SPARK_RPC_ENCRYPTION_ENABLED=no
+        39 +        - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+        40 +        - SPARK_SSL_ENABLED=no
+        41 +      depends_on:
+        42 +        - spark-master
+        43 +      volumes:
+        44 +        - ./spark_data:/opt/spark_data
+        45 +        - ./spark_apps:/opt/spark_apps
+        46 +        - ./sparkov_gen:/opt/sparkov_gen
+        47 +      networks:
+        48 +        - spark-network
+        49 +  
+        50 +    spark-worker-2:
+        51 +      image: bitnami/spark:3.5
+        52 +      container_name: spark-worker-2
+        53 +      environment:
+        54 +        - SPARK_MODE=worker
+        55 +        - SPARK_MASTER_URL=spark://spark-master:7077
+        56 +        - SPARK_WORKER_MEMORY=4G
+        57 +        - SPARK_WORKER_CORES=4
+        58 +        - SPARK_RPC_AUTHENTICATION_ENABLED=no
+        59 +        - SPARK_RPC_ENCRYPTION_ENABLED=no
+        60 +        - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+        61 +        - SPARK_SSL_ENABLED=no
+        62 +      depends_on:
+        63 +        - spark-master
+        64 +      volumes:
+        65 +        - ./spark_data:/opt/spark_data
+        66 +        - ./spark_apps:/opt/spark_apps
+        67 +        - ./sparkov_gen:/opt/sparkov_gen
+        68 +      networks:
+        69 +        - spark-network
+        70 +  
+        71 +    spark-history-server:
+        72 +      image: bitnami/spark:3.5
+        73 +      container_name: spark-history-server
+        74 +      environment:
+        75 +        - SPARK_MODE=history-server
+        76 +        - SPARK_HISTORY_FS_LOG_DIRECTORY=/opt/spark_data/spark-events
+        77 +      ports:
+        78 +        - "18080:18080"  # Spark History Server Web UI
+        79 +      depends_on:
+        80 +        - spark-master
+        81 +      volumes:
+        82 +        - ./spark_data:/opt/spark_data
+        83 +      networks:
+        84 +        - spark-network
+        85 +  
+        86 +    # MinIO for S3-compatible object storage (optional)
+        87 +    minio:
+        88 +      image: minio/minio:latest
+        89 +      container_name: minio
+        90 +      ports:
+        91 +        - "9000:9000"   # MinIO API
+        92 +        - "9001:9001"   # MinIO Console
+        93 +      environment:
+        94 +        - MINIO_ROOT_USER=minio
+        95 +        - MINIO_ROOT_PASSWORD=minio123
+        96 +        - MINIO_DEFAULT_BUCKETS=fraud-data,spark-warehouse
+        97 +      command: server /data --console-address ":9001"
+        98 +      volumes:
+        99 +        - minio_data:/data
+       100 +      networks:
+       101 +        - spark-network
+       102 +  
+       103 +    # Jupyter notebook for data analysis (optional)
+       104 +    jupyter:
+       105 +      image: jupyter/pyspark-notebook:latest
+       106 +      container_name: jupyter-spark
+       107 +      ports:
+       108 +        - "8888:8888"   # Jupyter Lab
+       109 +      environment:
+       110 +        - JUPYTER_ENABLE_LAB=yes
+       111 +        - SPARK_MASTER=spark://spark-master:7077
+       112 +      volumes:
+       113 +        - ./notebooks:/home/jovyan/work
+       114 +        - ./spark_data:/home/jovyan/work/data
+       115 +        - ./spark_apps:/home/jovyan/work/spark_apps
+       116 +        - ./sparkov_gen:/home/jovyan/work/sparkov_gen
+       117 +      depends_on:
+       118 +        - spark-master
+       119 +      networks:
+       120 +        - spark-network
+       121 +  
+       122 +    # PostgreSQL for metadata storage (optional)
+       123 +    postgres:
+       124 +      image: postgres:15
+       125 +      container_name: postgres-metadata
+       126 +      environment:
+       127 +        - POSTGRES_DB=fraud_metadata
+       128 +        - POSTGRES_USER=fraud_user
+       129 +        - POSTGRES_PASSWORD=fraud_password
+       130 +      ports:
+       131 +        - "5432:5432"
+       132 +      volumes:
+       133 +        - postgres_data:/var/lib/postgresql/data
+       134 +        - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+       135 +      networks:
+       136 +        - spark-network
+       137 +  
+       138 +  volumes:
+       139 +    minio_data:
+       140 +    postgres_data:
+       141 +  
+       142 +  networks:
+       143 +    spark-network:
+       144 +      driver: bridge
+       145   \ No newline at end of file
+
+> how fast can it generate 100GB, 
+  the original script performance: 
+  With standard profiles, it was benchmarked as generating ~95MB/thread/min. With a 64 cores/128 threads AMD E3, I was able to generate 1.4TB of data, 4.5B transactions, in just 
+  under 2h, as opposed to days when running the previous versions.
+
+● Update Todos
+  ⎿  ☒ Create Spark-based synthetic data generation pipeline      
+     ☒ Implement customer generation as Spark DataFrame operations
+     ☒ Implement transaction generation with Spark UDFs
+     ☒ Add Parquet output with proper partitioning strategy
+     ☒ Create example pipeline script with configuration
+
+● Based on the original sparkov_gen performance benchmarks, here's the 100GB generation time estimate with Spark:
+
+  Performance Analysis
+
+  Original Performance:
+  - 95MB/thread/min on CPU cores
+  - 1.4TB in ~2 hours on 64 cores/128 threads (AMD EPYC)
+  - Rate: ~12GB/min or 700GB/hour
+
+  Spark Scaling for 100GB:
+
+  Local Spark (16-32 cores):
+
+  - Time: ~8-15 minutes
+  - Bottleneck: CPU generation + Parquet serialization
+  - Throughput: ~7-12GB/min
+
+  Docker Spark Cluster (4-8 workers):
+
+  - Time: ~5-10 minutes
+  - Bottleneck: Network I/O between containers
+  - Throughput: ~10-20GB/min
+
+  Production Spark Cluster (20+ cores distributed):
+
+  - Time: ~3-7 minutes
+  - Bottleneck: Data serialization and Parquet compression
+  - Throughput: ~15-30GB/min
+
+  Key Factors:
+
+  Spark Advantages:
+  - Better memory management than multiprocessing
+  - Optimized Parquet writing with columnar compression
+  - Automatic partitioning and data locality
+  - Can leverage distributed storage (HDFS/S3)
+
+  Potential Bottlenecks:
+  - Parquet serialization: 2-3x slower than CSV output
+  - Data shuffling: Customer-to-transaction mapping
+  - Memory pressure: Large DataFrames require more RAM
+
+  Realistic Estimates:
+
+  - Small cluster (8 cores): 12-15 minutes
+  - Medium cluster (16 cores): 6-8 minutes
+  - Large cluster (32+ cores): 3-5 minutes
+  - Cloud cluster (EMR/Databricks): 2-4 minutes
+
+  The Spark version should achieve similar or better performance than the original script while providing better data format (Parquet), distributed processing, and fault tolerance.
+
+> how to write to s3 ?
+
+● To write Spark DataFrames directly to S3, you need to configure S3 access and modify the output path. Here are the key approaches:
+
+  1. S3 Configuration
+
+  Add S3 dependencies to Spark:
+  # In spark_fraud_datagen.py - add to SparkSession creation
+  spark = SparkSession.builder \
+      .appName(args.app_name) \
+      .master(args.master) \
+      .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262") \
+      .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+      .config("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain") \
+      .getOrCreate()
+
+  2. S3 Authentication Options
+
+  Option A: Environment Variables
+  export AWS_ACCESS_KEY_ID=your-access-key
+  export AWS_SECRET_ACCESS_KEY=your-secret-key
+  export AWS_DEFAULT_REGION=us-east-1
+
+  Option B: IAM Roles (EMR/EC2)
+  .config("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.InstanceProfileCredentialsProvider")
+
+  Option C: Explicit Credentials
+  .config("spark.hadoop.fs.s3a.access.key", "your-access-key")
+  .config("spark.hadoop.fs.s3a.secret.key", "your-secret-key")
+
+  3. Modified Output Code
+
+  Change output path to S3:
+  # Instead of local path:
+  output_path = "./spark_data/fraud_transactions.parquet"
+
+  # Use S3 path:
+  output_path = "s3a://your-bucket-name/fraud-data/transactions/"
+
+  # Write to S3 with optimized settings
+  transactions_final.write \
+      .mode("overwrite") \
+      .partitionBy("year", "month", "profile_group") \
+      .option("maxRecordsPerFile", 100000) \
+      .option("compression", "snappy") \
+      .parquet(output_path)
+
+  4. S3-Optimized Configuration
+
+  Add to SparkSession config:
+  .config("spark.hadoop.fs.s3a.multipart.size", "104857600")  # 100MB chunks
+  .config("spark.hadoop.fs.s3a.multipart.threshold", "2147483647")  # 2GB threshold  
+  .config("spark.hadoop.fs.s3a.fast.upload", "true")
+  .config("spark.hadoop.fs.s3a.block.size", "134217728")  # 128MB blocks
+  .config("spark.sql.parquet.compression.codec", "snappy")
+
+  5. Complete Example
+
+  Updated run command:
+  # Set S3 credentials
+  export AWS_ACCESS_KEY_ID=your-key
+  export AWS_SECRET_ACCESS_KEY=your-secret
+
+  # Run with S3 output
+  python3 spark_apps/spark_fraud_datagen.py \
+      --num_customers 100000 \
+      --start_date 2023-01-01 \
+      --end_date 2023-12-31 \
+      --output "s3a://your-fraud-bucket/transactions/year=2023/" \
+      --seed 42
+
+  6. Performance Considerations
+
+  S3 Write Performance:
+  - Partition strategy: Use partitionBy() for efficient querying
+  - File size: Target 128MB-1GB per file with maxRecordsPerFile
+  - Compression: Snappy provides good balance of speed/size
+  - Parallelism: More executors = faster S3 uploads
+
+  Expected S3 write speeds:
+  - 100GB dataset: 5-10 minutes to S3 (depending on bandwidth)
+  - Multiple parallel uploads significantly faster than single-threaded
+
+  The S3 integration maintains the same generation performance while providing cloud-native storage with automatic scaling and durability.
+
+> if don't define any config SparkSession the script will use the cluster configuration ?
+
+● No, if you don't define any config, SparkSession will use Spark's default configurations, not cluster-specific configurations.
+
+  Default Behavior:
+
+  Without explicit config:
+  spark = SparkSession.builder.appName("MyApp").getOrCreate()
+  # Uses Spark defaults + any configs from spark-defaults.conf
+
+  Configuration Priority (High to Low):
+
+  1. Explicit SparkSession configs - spark.config(key, value)
+  2. Command-line arguments - spark-submit --conf key=value
+  3. spark-defaults.conf file - Cluster-wide defaults
+  4. Spark built-in defaults - Hardcoded fallbacks
+
+  Cluster Integration Options:
+
+  Option A: Use spark-defaults.conf (Recommended)
+  # /opt/spark/conf/spark-defaults.conf
+  spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+  spark.hadoop.fs.s3a.aws.credentials.provider=com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+  spark.sql.parquet.compression.codec=snappy
+
+  Option B: Environment-based config detection:
+  def create_spark_session():
+      builder = SparkSession.builder.appName("FraudGenerator")
+
+      # Auto-detect cluster environment
+      if os.getenv('SPARK_MASTER'):
+          builder = builder.master(os.getenv('SPARK_MASTER'))
+
+      # Load cluster-specific configs if available
+      if os.path.exists('/opt/spark/conf/spark-defaults.conf'):
+          # Spark will automatically load this
+          pass
+      elif os.getenv('AWS_DEFAULT_REGION'):
+          # Running on AWS - add S3 configs
+          builder = builder.config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+
+      return builder.getOrCreate()
+
+  Option C: Conditional configuration:
+  def get_cluster_configs():
+      """Return configs based on environment detection"""
+
+      # EMR detection
+      if os.path.exists('/emr/instance-controller'):
+          return {
+              "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+              "spark.dynamicAllocation.enabled": "true"
+          }
+
+      # Databricks detection  
+      if os.getenv('DATABRICKS_RUNTIME_VERSION'):
+          return {
+              "spark.sql.adaptive.enabled": "true",
+              "spark.sql.adaptive.coalescePartitions.enabled": "true"
+          }
+
+      # Default local configs
+      return {
+          "spark.sql.adaptive.enabled": "true"
+      }
+
+  # Usage
+  cluster_configs = get_cluster_configs()
+  spark = SparkSession.builder.appName("FraudGen")
+  for key, value in cluster_configs.items():
+      spark = spark.config(key, value)
+  spark = spark.getOrCreate()
+
+  Best Practice:
+
+  For portability, use environment-aware configuration:
+  # In your script - checks for cluster configs first
+  spark = SparkSession.builder \
+      .appName("FraudDataGenerator") \
+      .config("spark.sql.adaptive.enabled", "true") \
+      .getOrCreate()
+
+  # Cluster admins can override via spark-defaults.conf or spark-submit args
+
+  This way your script works locally with defaults but automatically picks up cluster-specific settings when deployed.
+
+> the pipeline will write to a single parquet?
+
+● No, the current pipeline will write to multiple Parquet files, not a single file. This is by design for performance and parallel processing.
+
+  Current Behavior:
+
+  Partitioned Output Structure:
+  s3a://bucket/fraud-data/transactions/
+  ├── year=2023/
+  │   ├── month=01/
+  │   │   ├── profile_group=young_adults_male_urban.json/
+  │   │   │   ├── part-00000-xxx.parquet
+  │   │   │   ├── part-00001-xxx.parquet
+  │   │   │   └── part-00002-xxx.parquet
+  │   │   └── profile_group=adults_2550_female_rural.json/
+  │   │       ├── part-00000-xxx.parquet
+  │   │       └── part-00001-xxx.parquet
+  │   └── month=02/
+  │       └── ... (similar structure)
+
+  Why Multiple Files?
+
+  Performance Benefits:
+  - Parallel writes: Each Spark partition writes independently
+  - Parallel reads: Query engines can read multiple files simultaneously
+  - Scalability: Handles large datasets without memory issues
+  - Fault tolerance: If one write fails, others continue
+
+  File Size Control:
+
+  Current setting:
+  .option("maxRecordsPerFile", 50000)  # ~25-50MB per file
+
+  To create fewer, larger files:
+  transactions_final.coalesce(10) \  # Force into 10 partitions
+      .write \
+      .mode("overwrite") \
+      .option("maxRecordsPerFile", 1000000) \  # ~500MB-1GB files
+      .parquet(output_path)
+
+  Single File Options:
+
+  Option A: Force single file (NOT recommended for large data):
+  transactions_final.coalesce(1) \  # Single partition = single file
+      .write \
+      .mode("overwrite") \
+      .parquet(output_path)
+
+  Option B: Write per partition, then combine:
+  # Write partitioned first (fast)
+  transactions_final.write.partitionBy("year", "month").parquet(temp_path)
+
+  # Then combine specific partitions if needed
+  spark.read.parquet(f"{temp_path}/year=2023/month=01") \
+       .coalesce(1) \
+       .write \
+       .parquet(f"{output_path}/year=2023/month=01/combined.parquet")
+
+  Recommended Approach:
+
+  Keep multiple files with optimal sizing:
+  # Target 128MB-1GB files for best performance
+  optimal_partitions = max(1, total_records // 500000)
+
+  transactions_final.repartition(optimal_partitions) \
+      .write \
+      .mode("overwrite") \
+      .partitionBy("year", "month") \
+      .option("maxRecordsPerFile", 500000) \
+      .parquet(output_path)
+
+  Benefits:
+  - Query engines (Spark, Presto, Athena) read multiple files in parallel
+  - Each file is optimally sized for memory and I/O
+  - Better compression ratios than single massive file
+  - Fault tolerance during writes
+
+  For 100GB of data, expect 200-800 individual Parquet files depending on partitioning strategy.
+
+> what is the relationship between customer, profile and transaction
+
+● The relationship between Customer, Profile, and Transaction forms the core data model of the fraud generation system:
+
+  Data Flow Relationship:
+
+  Customer → Profile Assignment → Transaction Generation
+     |             |                      |
+     |             |                      └─ Multiple transactions per customer
+     |             └─ One profile per customer (demographic-based)
+     └─ One customer record with demographics
+
+  1. Customer → Profile Assignment
+
+  Customer attributes determine profile:
+  # From datagen_customer.py:130-159
+  def find_profile(self):
+      city_pop = float(self.addy[-1])
+
+      for profile in self.all_profiles:
+          if (self.gender in profile["gender"] and
+              self.age >= profile["age"][0] and
+              self.age < profile["age"][1] and
+              city_pop >= profile["city_pop"][0] and
+              city_pop < profile["city_pop"][1]):
+              return profile  # e.g., "young_adults_male_urban.json"
+
+  Assignment logic:
+  - Age brackets: 0-25, 25-50, 50+
+  - Gender: Male/Female
+  - Location: Urban (pop ≥ 2,500) vs Rural (< 2,500)
+  - Result: 12 possible profiles (3 ages × 2 genders × 2 locations)
+
+  2. Profile → Transaction Behavior
+
+  Profile defines spending patterns:
+  // young_adults_male_urban.json
+  {
+    "avg_transactions_per_day": {"min": 0, "max": 6},
+    "categories_wt": {
+      "gas_transport": 200,      // High weight = more likely
+      "entertainment": 120,
+      "grocery_pos": 75
+    },
+    "shopping_time": {...},       // When they shop
+    "amount": {...}              // How much they spend
+  }
+
+  3. Transaction Generation Process
+
+  Per customer workflow:
+  # From datagen_transaction.py:142-176
+  for customer_row in customers:
+      customer = Customer(customer_row)
+      profile_name = customer.attrs["profile"]  # e.g., "young_adults_male_urban.json"
+
+      # Load profile behavior patterns
+      profile = Profile(profile_json)
+      profile.set_date_range(start_date, end_date)
+
+      # Generate transactions based on profile
+      transactions = profile.sample_from(is_fraud=0)  # Regular transactions
+
+      # Optional: Generate fraud period (1% chance)
+      if fraud_flag < 1:
+          fraud_profile = Profile(fraud_profile_json)
+          fraud_transactions = fraud_profile.sample_from(is_fraud=1)
+
+  4. Cardinality Relationships:
+
+  1:1 Customer → Profile:
+  - Each customer gets exactly one behavioral profile
+  - Profile determined by demographics (age, gender, location)
+
+  1:Many Customer → Transactions:
+  - One customer generates 10-2,000+ transactions (depends on date range)
+  - Transaction count varies by profile (young adults shop more frequently)
+
+  1:Many Profile → Customers:
+  - Multiple customers can share the same profile
+  - E.g., all young urban males use young_adults_male_urban.json
+
+  5. Example Data Flow:
+
+  Customer: John Smith, Age 28, Male, NYC (pop 8M)
+      ↓
+  Profile: "adults_2550_male_urban.json"
+      ↓
+  Behavioral Rules:
+      - 2-6 transactions/day
+      - High gas_transport weight (200)
+      - Shops mostly weekends
+      - $10-200 transaction amounts
+      ↓
+  Generated Transactions:
+      - 2023-01-15: Gas station, $45.67
+      - 2023-01-15: Grocery, $89.23
+      - 2023-01-16: Entertainment, $67.89
+      - ... (365 days worth)
+
+  6. Fraud Relationship:
+
+  Regular vs Fraud profiles:
+  - young_adults_male_urban.json → Normal behavior
+  - fraud_young_adults_male_urban.json → Fraud behavior (same demographics, different patterns)
+
+  Fraud injection:
+  - 1% of customers get 1-day fraud period
+  - During fraud: uses fraud profile instead of regular profile
+  - Results in anomalous transaction patterns for detection training
+
+  This hierarchical relationship enables realistic, demographically-consistent transaction generation at scale.
+
+> what does Customer in datagen_transaction do
+
+● The Customer class in datagen_transaction.py is a transaction generator wrapper that processes individual customer records and generates their transaction history. Here's what it
+   does:
+
+  Customer Class Purpose:
+
+  Takes a customer record → Generates all transactions for that customer
+
+  Key Methods:
+
+  1. __init__(self, raw) - Parse Customer Data
+
+  def __init__(self, raw):
+      self.raw = raw.strip().split("|")  # Split pipe-delimited customer data
+      self.attrs = self.parse_customer(raw)  # Convert to dictionary
+      self.fraud_dates = []  # Track fraud transaction dates
+
+  Input: Pipe-delimited customer string from customers.csv
+  "123456789|4532123456789012|John|Smith|M|123 Main St|New York|NY|10001|40.7128|-74.0060|8000000|Engineer|1990-05-15|123456789012|young_adults_male_urban.json"
+
+  Output: Structured customer object with easy attribute access
+
+  2. parse_customer(line) - Convert to Dictionary
+
+  def parse_customer(self, line):
+      cols = [c for c in line.strip().split("|")]
+      return dict(zip(headers, cols))  # Map to named fields
+
+  Result:
+  customer.attrs = {
+      "ssn": "123456789",
+      "cc_num": "4532123456789012",
+      "first": "John",
+      "profile": "young_adults_male_urban.json",
+      "lat": "40.7128",
+      "long": "-74.0060",
+      # ... all other fields
+  }
+
+  3. print_trans(trans, is_fraud, fraud_dates) - Generate Transaction Records
+
+  def print_trans(self, trans, is_fraud, fraud_dates):
+      is_traveling = trans[1]
+      travel_max = trans[2]
+
+      for t in trans[0]:  # Loop through each transaction
+          # Get merchant for this category
+          merchants_in_category = merchants.get(t[4])
+          chosen_merchant = random.sample(merchants_in_category, 1)[0]
+
+          # Calculate merchant location (near customer or traveling)
+          cust_lat = self.attrs["lat"]
+          cust_long = self.attrs["long"]
+
+          if is_traveling:
+              rad = (float(travel_max) / 100) * 1.43  # Wider radius for travel
+          else:
+              rad = 1  # ~70 mile radius from home
+
+          merch_lat = fake.coordinate(center=float(cust_lat), radius=rad)
+          merch_long = fake.coordinate(center=float(cust_long), radius=rad)
+
+          # Skip if this is a fraud date but we're generating regular transactions
+          if (is_fraud == 0 and t[1] not in fraud_dates) or is_fraud == 1:
+              # Combine customer data + transaction data + merchant data
+              features = (
+                  self.raw + t + [chosen_merchant, str(merch_lat), str(merch_long)]
+              )
+              print("|".join(features))  # Output final transaction record
+
+  What This Method Does:
+
+  Input: Transaction data from Profile.sample_from()
+  trans = [
+      [  # List of transactions
+          ["trans_123", "2023-01-15", "14:23:45", 1673792625, "grocery_pos", 89.23],
+          ["trans_124", "2023-01-15", "18:45:12", 1673808312, "gas_transport", 45.67]
+      ],
+      False,  # is_traveling
+      0       # travel_max
+  ]
+
+  Processing for each transaction:
+  1. Merchant assignment: Picks random merchant from the transaction category
+  2. Geographic placement: Places merchant near customer (or far if traveling)
+  3. Fraud filtering: Skips regular transactions on fraud dates
+  4. Record assembly: Combines customer info + transaction + merchant + location
+
+  Output: Complete transaction records
+  123456789|4532123456789012|John|Smith|M|...|trans_123|2023-01-15|14:23:45|1673792625|grocery_pos|89.23|0|Walmart Store 1234|40.7145|-74.0023
+
+  Role in the Pipeline:
+
+  main() function:
+  ├── Load customer from CSV file
+  ├── Create Customer(raw_line) object  ← This class
+  ├── Check if customer matches current profile
+  ├── Generate fraud transactions (if selected)
+  │   └── customer.print_trans(fraud_data, is_fraud=1, [])
+  ├── Generate regular transactions
+  │   └── customer.print_trans(regular_data, is_fraud=0, fraud_dates)
+  └── Move to next customer
+
+  Key insight: The Customer class is the bridge between:
+  - Raw customer demographics (from datagen_customer.py)
+  - Behavioral transaction patterns (from profile_weights.py)
+  - Final transaction records (output format)
+
+  It handles the "how" of transaction generation while the Profile class handles the "what" (transaction patterns).
+

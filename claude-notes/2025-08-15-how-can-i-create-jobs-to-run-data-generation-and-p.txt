@@ -1,0 +1,727 @@
+╭─────────────────────────────────────────────────────╮
+│ ✻ Welcome to Claude Code!                           │
+│                                                     │
+│   /help for help, /status for your current setup    │
+│                                                     │
+│   cwd: /home/saladass/crafts/spark_fraud_detection  │
+╰─────────────────────────────────────────────────────╯
+
+
+ What's new:
+  • Released output styles, including new built-in educational output styles "Explanatory" and "Learning". Docs: https://docs.anthropic.com/en/docs/claude-code/output-styles
+  • Plugin system: Improve plugin repository installation messaging and error handling
+  • Agents: Fix custom agent loading when agent files are unparsable
+  • Add plugin system: Install plugins from Git repositories with custom commands and agents using /plugin commands
+  • UI improvements: Fix text contrast for custom subagent colors and spinner rendering issues
+
+> how can i create jobs to run data generation and prediction on EMR serverless, show how to dump the code on to s3 and install dependencies for the code too
+
+● I'll help you set up EMR Serverless jobs for data generation and prediction. Let me create a todo list to track this complex task.
+
+● Update Todos
+  ⎿  ☐ Create EMR Serverless job scripts for data generation      
+     ☐ Create EMR Serverless job scripts for prediction
+     ☐ Create S3 deployment script to upload code and dependencies
+     ☐ Create requirements management for EMR Serverless
+     ☐ Create example job submission scripts
+
+● Update Todos
+  ⎿  ☐ Create EMR Serverless job scripts for data generation      
+     ☐ Create EMR Serverless job scripts for prediction
+     ☐ Create S3 deployment script to upload code and dependencies
+     ☐ Create requirements management for EMR Serverless
+     ☐ Create example job submission scripts
+
+● Write(scripts/emr_serverless_datagen.py)
+  ⎿  User rejected write to scripts/emr_serverless_datagen.py
+         1 +  #!/usr/bin/env python3
+         2 +  """
+         3 +  EMR Serverless Data Generation Job
+         4 +  Generates fraud detection data using Spark on EMR Serverless
+         5 +  """
+         6 +  
+         7 +  import argparse
+         8 +  import sys
+         9 +  from pyspark.sql import SparkSession
+        10 +  
+        11 +  # Import our data generation modules
+        12 +  from spark_fraud_detection.generation.datagen import FraudDataGenerator
+        13 +  
+        14 +  
+        15 +  def create_spark_session(app_name: str = "EMRServerless-FraudDataGen") -> SparkSession:
+        16 +      """Create Spark session optimized for EMR Serverless"""
+        17 +      return SparkSession.builder \
+        18 +          .appName(app_name) \
+        19 +          .config("spark.sql.adaptive.enabled", "true") \
+        20 +          .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+        21 +          .config("spark.sql.adaptive.advisoryPartitionSizeInBytes", "128MB") \
+        22 +          .config("spark.sql.parquet.compression.codec", "snappy") \
+        23 +          .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+        24 +          .config("spark.hadoop.fs.s3a.aws.credentials.provider", 
+        25 +                  "com.amazonaws.auth.DefaultAWSCredentialsProviderChain") \
+        26 +          .getOrCreate()
+        27 +  
+        28 +  
+        29 +  def main():
+        30 +      parser = argparse.ArgumentParser(description="EMR Serverless Fraud Data Generation")
+        31 +      parser.add_argument("-n", "--num-customers", type=int, required=True,
+        32 +                         help="Number of customers to generate")
+        33 +      parser.add_argument("-o", "--output", required=True,
+        34 +                         help="S3 output path (s3://bucket/path)")
+        35 +      parser.add_argument("--start-date", default="2023-01-01",
+        36 +                         help="Start date (YYYY-MM-DD)")
+        37 +      parser.add_argument("--end-date", default="2023-12-31", 
+        38 +                         help="End date (YYYY-MM-DD)")
+        39 +      parser.add_argument("--seed", type=int, default=42,
+        40 +                         help="Random seed for reproducibility")
+        41 +      parser.add_argument("--partitions", type=int, default=None,
+        42 +                         help="Number of output partitions (auto if not specified)")
+        43 +      
+        44 +      args = parser.parse_args()
+        45 +      
+        46 +      # Validate S3 output path
+        47 +      if not args.output.startswith("s3://"):
+        48 +          print("Error: Output path must be S3 URI (s3://bucket/path)")
+        49 +          sys.exit(1)
+        50 +      
+        51 +      print(f"Starting EMR Serverless fraud data generation:")
+        52 +      print(f"  Customers: {args.num_customers:,}")
+        53 +      print(f"  Output: {args.output}")
+        54 +      print(f"  Date range: {args.start_date} to {args.end_date}")
+        55 +      print(f"  Seed: {args.seed}")
+        56 +      
+        57 +      # Create Spark session
+        58 +      spark = create_spark_session()
+        59 +      
+        60 +      try:
+        61 +          # Initialize data generator
+        62 +          generator = FraudDataGenerator(
+        63 +              spark=spark,
+        64 +              num_customers=args.num_customers,
+        65 +              start_date=args.start_date,
+        66 +              end_date=args.end_date,
+        67 +              seed=args.seed
+        68 +          )
+        69 +          
+        70 +          # Generate data with appropriate partitioning for large datasets
+        71 +          if args.partitions:
+        72 +              generator.set_output_partitions(args.partitions)
+        73 +          else:
+        74 +              # Auto-partition based on data size (rough estimate)
+        75 +              estimated_partitions = max(1, args.num_customers // 10000)
+        76 +              generator.set_output_partitions(estimated_partitions)
+        77 +          
+        78 +          # Run generation pipeline
+        79 +          print("Generating customer profiles...")
+        80 +          customers_df = generator.generate_customers()
+        81 +          
+        82 +          print("Generating transactions...")
+        83 +          transactions_df = generator.generate_transactions(customers_df)
+        84 +          
+        85 +          print(f"Writing results to {args.output}")
+        86 +          generator.write_to_s3(
+        87 +              customers_df=customers_df,
+        88 +              transactions_df=transactions_df,
+        89 +              s3_path=args.output
+        90 +          )
+        91 +          
+        92 +          # Print summary statistics
+        93 +          customer_count = customers_df.count()
+        94 +          transaction_count = transactions_df.count()
+        95 +          fraud_count = transactions_df.filter(transactions_df.is_fraud == 1).count()
+        96 +          
+        97 +          print(f"\nGeneration completed successfully:")
+        98 +          print(f"  Customers: {customer_count:,}")
+        99 +          print(f"  Transactions: {transaction_count:,}")
+       100 +          print(f"  Fraudulent transactions: {fraud_count:,} ({fraud_count/transaction_count*100:.2f}%)")
+       101 +          
+       102 +      except Exception as e:
+       103 +          print(f"Error during data generation: {str(e)}")
+       104 +          sys.exit(1)
+       105 +      
+       106 +      finally:
+       107 +          spark.stop()
+       108 +  
+       109 +  
+       110 +  if __name__ == "__main__":
+       111 +      main()
+       112   \ No newline at end of file
+
+> use the scripts already in scripts/ just do the job creation and deployment
+
+● List(scripts)
+  ⎿  Listed 5 paths (ctrl+r to expand)
+
+● Read(scripts/generate_to_s3.py)
+  ⎿  Read 436 lines (ctrl+r to expand)
+
+● Read(scripts/run_fraud_detection.py)
+  ⎿  Read 104 lines (ctrl+r to expand)
+
+● Update Todos
+  ⎿  ☒ Create EMR Serverless job scripts for data generation      
+     ☐ Create EMR Serverless job scripts for prediction
+     ☐ Create S3 deployment script to upload code and dependencies
+     ☐ Create requirements management for EMR Serverless
+     ☐ Create example job submission scripts
+
+● Write(scripts/deploy_to_s3.py)
+  ⎿  User rejected write to scripts/deploy_to_s3.py
+         1 +  #!/usr/bin/env python3
+         2 +  """
+         3 +  Deploy code and dependencies to S3 for EMR Serverless jobs
+         4 +  """
+         5 +  
+         6 +  import argparse
+         7 +  import os
+         8 +  import subprocess
+         9 +  import sys
+        10 +  import tempfile
+        11 +  import zipfile
+        12 +  from pathlib import Path
+        13 +  from typing import Optional
+        14 +  
+        15 +  import boto3
+        16 +  from botocore.exceptions import ClientError
+        17 +  
+        18 +  
+        19 +  def create_code_archive(project_root: Path, output_path: Path) -> Path:
+        20 +      """Create a ZIP archive of the project code excluding unnecessary files"""
+        21 +      print("Creating code archive...")
+        22 +      
+        23 +      # Files and directories to exclude
+        24 +      exclude_patterns = {
+        25 +          '__pycache__',
+        26 +          '.git',
+        27 +          '.pytest_cache',
+        28 +          'node_modules',
+        29 +          '.venv',
+        30 +          'venv',
+        31 +          'data',
+        32 +          'output',
+        33 +          'notebooks',
+        34 +          'docs',
+        35 +          'claude-notes',
+        36 +          '.gitignore',
+        37 +          '.gitmodules',
+        38 +          'README.md',
+        39 +          'docker-compose.yml',
+        40 +          'Dockerfile',
+        41 +          'entrypoint.sh',
+        42 +          '.python-version',
+        43 +          'uv.lock'
+        44 +      }
+        45 +      
+        46 +      exclude_extensions = {'.pyc', '.pyo', '.log', '.tmp'}
+        47 +      
+        48 +      archive_path = output_path / "spark_fraud_detection_code.zip"
+        49 +      
+        50 +      with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        51 +          for file_path in project_root.rglob('*'):
+        52 +              if file_path.is_file():
+        53 +                  # Check if file should be excluded
+        54 +                  relative_path = file_path.relative_to(project_root)
+        55 +                  
+        56 +                  # Skip if any part of path matches exclude patterns
+        57 +                  if any(part in exclude_patterns for part in relative_path.parts):
+        58 +                      continue
+        59 +                      
+        60 +                  # Skip if extension matches exclude patterns
+        61 +                  if file_path.suffix in exclude_extensions:
+        62 +                      continue
+        63 +                  
+        64 +                  # Add file to archive
+        65 +                  zipf.write(file_path, relative_path)
+        66 +                  print(f"  Added: {relative_path}")
+        67 +      
+        68 +      print(f"Code archive created: {archive_path}")
+        69 +      return archive_path
+        70 +  
+        71 +  
+        72 +  def create_dependencies_archive(requirements_file: Path, output_path: Path) -> Path:
+        73 +      """Create a ZIP archive of Python dependencies using pip download"""
+        74 +      print("Creating dependencies archive...")
+        75 +      
+        76 +      deps_dir = output_path / "deps"
+        77 +      deps_dir.mkdir(exist_ok=True)
+        78 +      
+        79 +      # Download dependencies
+        80 +      cmd = [
+        81 +          sys.executable, "-m", "pip", "download",
+        82 +          "-r", str(requirements_file),
+        83 +          "-d", str(deps_dir),
+        84 +          "--no-deps"  # Don't download dependencies of dependencies
+        85 +      ]
+        86 +      
+        87 +      try:
+        88 +          subprocess.run(cmd, check=True, capture_output=True, text=True)
+        89 +      except subprocess.CalledProcessError as e:
+        90 +          print(f"Error downloading dependencies: {e.stderr}")
+        91 +          return None
+        92 +      
+        93 +      # Create ZIP archive
+        94 +      archive_path = output_path / "dependencies.zip"
+        95 +      with zipfile.ZipFile(archive_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        96 +          for file_path in deps_dir.rglob('*'):
+        97 +              if file_path.is_file():
+        98 +                  relative_path = file_path.relative_to(deps_dir)
+        99 +                  zipf.write(file_path, relative_path)
+       100 +      
+       101 +      print(f"Dependencies archive created: {archive_path}")
+       102 +      return archive_path
+       103 +  
+       104 +  
+       105 +  def upload_to_s3(local_path: Path, bucket: str, s3_key: str, 
+       106 +                   endpoint_url: Optional[str] = None,
+       107 +                   access_key: Optional[str] = None, 
+       108 +                   secret_key: Optional[str] = None) -> bool:
+       109 +      """Upload file to S3"""
+       110 +      try:
+       111 +          client_kwargs = {}
+       112 +          if endpoint_url:
+       113 +              client_kwargs["endpoint_url"] = endpoint_url
+       114 +          if access_key and secret_key:
+       115 +              client_kwargs["aws_access_key_id"] = access_key
+       116 +              client_kwargs["aws_secret_access_key"] = secret_key
+       117 +          
+       118 +          s3_client = boto3.client("s3", **client_kwargs)
+       119 +          
+       120 +          print(f"Uploading {local_path.name} to s3://{bucket}/{s3_key}")
+       121 +          s3_client.upload_file(str(local_path), bucket, s3_key)
+       122 +          print(f"✓ Upload completed")
+       123 +          return True
+       124 +          
+       125 +      except ClientError as e:
+       126 +          print(f"✗ Upload failed: {e}")
+       127 +          return False
+       128 +  
+       129 +  
+       130 +  def generate_requirements_txt(project_root: Path) -> Path:
+       131 +      """Generate requirements.txt from pyproject.toml if it doesn't exist"""
+       132 +      req_file = project_root / "requirements.txt"
+       133 +      
+       134 +      if req_file.exists():
+       135 +          print(f"Using existing requirements.txt")
+       136 +          return req_file
+       137 +      
+       138 +      pyproject_file = project_root / "pyproject.toml"
+       139 +      if not pyproject_file.exists():
+       140 +          print("No requirements.txt or pyproject.toml found, creating minimal requirements")
+       141 +          # Create minimal requirements for fraud detection
+       142 +          minimal_reqs = [
+       143 +              "pyspark>=3.4.0",
+       144 +              "boto3>=1.26.0",
+       145 +              "botocore>=1.29.0", 
+       146 +              "pandas>=1.5.0",
+       147 +              "numpy>=1.21.0",
+       148 +              "scikit-learn>=1.1.0",
+       149 +              "Faker>=15.0.0"
+       150 +          ]
+       151 +          req_file.write_text("\n".join(minimal_reqs))
+       152 +          return req_file
+       153 +      
+       154 +      # Try to extract from pyproject.toml
+       155 +      try:
+       156 +          import tomli
+       157 +          with open(pyproject_file, 'rb') as f:
+       158 +              data = tomli.load(f)
+       159 +          
+       160 +          deps = data.get('project', {}).get('dependencies', [])
+       161 +          if deps:
+       162 +              req_file.write_text("\n".join(deps))
+       163 +              print(f"Generated requirements.txt from pyproject.toml")
+       164 +              return req_file
+       165 +      except ImportError:
+       166 +          print("tomli not available, cannot parse pyproject.toml")
+       167 +      except Exception as e:
+       168 +          print(f"Error parsing pyproject.toml: {e}")
+       169 +      
+       170 +      # Fallback to pip freeze in virtual environment
+       171 +      print("Attempting to generate requirements from current environment...")
+       172 +      try:
+       173 +          result = subprocess.run([sys.executable, "-m", "pip", "freeze"], 
+       174 +                                capture_output=True, text=True, check=True)
+       175 +          req_file.write_text(result.stdout)
+       176 +          print(f"Generated requirements.txt from pip freeze")
+       177 +          return req_file
+       178 +      except subprocess.CalledProcessError:
+       179 +          print("Could not generate requirements.txt")
+       180 +          return None
+       181 +  
+       182 +  
+       183 +  def main():
+       184 +      parser = argparse.ArgumentParser(description="Deploy code to S3 for EMR Serverless")
+       185 +      
+       186 +      # S3 configuration
+       187 +      parser.add_argument("--bucket", required=True, help="S3 bucket name")
+       188 +      parser.add_argument("--s3-prefix", default="emr-serverless/code", 
+       189 +                         help="S3 prefix for uploaded files")
+       190 +      parser.add_argument("--s3-endpoint", help="S3 endpoint URL (for MinIO)")
+       191 +      parser.add_argument("--s3-access-key", 
+       192 +                         default=os.environ.get("AWS_ACCESS_KEY_ID"),
+       193 +                         help="S3 access key")
+       194 +      parser.add_argument("--s3-secret-key",
+       195 +                         default=os.environ.get("AWS_SECRET_ACCESS_KEY"), 
+       196 +                         help="S3 secret key")
+       197 +      
+       198 +      # Options
+       199 +      parser.add_argument("--skip-deps", action="store_true",
+       200 +                         help="Skip creating and uploading dependencies archive")
+       201 +      parser.add_argument("--output-dir", default="/tmp/emr-deploy",
+       202 +                         help="Local directory for temporary files")
+       203 +      
+       204 +      args = parser.parse_args()
+       205 +      
+       206 +      project_root = Path(__file__).parent.parent
+       207 +      output_dir = Path(args.output_dir)
+       208 +      output_dir.mkdir(exist_ok=True)
+       209 +      
+       210 +      print("=== EMR Serverless Deployment ===")
+       211 +      print(f"Project root: {project_root}")
+       212 +      print(f"S3 bucket: {args.bucket}")
+       213 +      print(f"S3 prefix: {args.s3_prefix}")
+       214 +      
+       215 +      success = True
+       216 +      
+       217 +      # Create and upload code archive
+       218 +      try:
+       219 +          code_archive = create_code_archive(project_root, output_dir)
+       220 +          code_s3_key = f"{args.s3_prefix}/spark_fraud_detection_code.zip"
+       221 +          
+       222 +          if not upload_to_s3(code_archive, args.bucket, code_s3_key,
+       223 +                             args.s3_endpoint, args.s3_access_key, args.s3_secret_key):
+       224 +              success = False
+       225 +          else:
+       226 +              print(f"Code archive URL: s3://{args.bucket}/{code_s3_key}")
+       227 +              
+       228 +      except Exception as e:
+       229 +          print(f"Error creating code archive: {e}")
+       230 +          success = False
+       231 +      
+       232 +      # Create and upload dependencies archive
+       233 +      if not args.skip_deps:
+       234 +          try:
+       235 +              req_file = generate_requirements_txt(project_root)
+       236 +              if req_file and req_file.exists():
+       237 +                  deps_archive = create_dependencies_archive(req_file, output_dir)
+       238 +                  if deps_archive:
+       239 +                      deps_s3_key = f"{args.s3_prefix}/dependencies.zip"
+       240 +                      
+       241 +                      if not upload_to_s3(deps_archive, args.bucket, deps_s3_key,
+       242 +                                         args.s3_endpoint, args.s3_access_key, args.s3_secret_key):
+       243 +                          success = False
+       244 +                      else:
+       245 +                          print(f"Dependencies archive URL: s3://{args.bucket}/{deps_s3_key}")
+       246 +                  else:
+       247 +                      print("Failed to create dependencies archive")
+       248 +                      success = False
+       249 +              else:
+       250 +                  print("No requirements file available, skipping dependencies")
+       251 +                  
+       252 +          except Exception as e:
+       253 +              print(f"Error with dependencies: {e}")
+       254 +              success = False
+       255 +      
+       256 +      # Output deployment information
+       257 +      if success:
+       258 +          print("\n=== Deployment Summary ===")
+       259 +          print("Files uploaded successfully!")
+       260 +          print("\nTo use in EMR Serverless job:")
+       261 +          print(f"--archives s3://{args.bucket}/{args.s3_prefix}/spark_fraud_detection_code.zip")
+       262 +          if not args.skip_deps:
+       263 +              print(f"--py-files s3://{args.bucket}/{args.s3_prefix}/dependencies.zip")
+       264 +          print(f"\nEntry point script:")
+       265 +          print(f"s3://{args.bucket}/{args.s3_prefix}/spark_fraud_detection_code.zip/scripts/generate_to_s3.py")
+       266 +          print(f"s3://{args.bucket}/{args.s3_prefix}/spark_fraud_detection_code.zip/scripts/run_fraud_detection.py")
+       267 +      else:
+       268 +          print("\n✗ Deployment failed")
+       269 +          sys.exit(1)
+       270 +  
+       271 +  
+       272 +  if __name__ == "__main__":
+       273 +      main()
+       274   \ No newline at end of file
+
+> show me the step for upload code and dependencies to s3, notice that i use uv as the package manager, 
+  only write the job submission scripts
+
+● Update Todos
+  ⎿  ☒ Create EMR Serverless job scripts for data generation      
+     ☒ Create EMR Serverless job scripts for prediction
+     ☒ Create S3 deployment script to upload code and dependencies
+     ☒ Create requirements management for EMR Serverless
+     ☐ Create example job submission scripts
+
+● Steps to Upload Code and Dependencies to S3 (using uv)
+
+  1. Export dependencies to requirements.txt
+
+  # Export current dependencies 
+  uv export --format requirements-txt --output-file requirements.txt
+
+  # Or export without hashes for EMR compatibility
+  uv export --format requirements-txt --no-hashes --output-file requirements.txt
+
+  2. Create code archive
+
+  # Create zip of your code (excluding unnecessary files)
+  zip -r spark_fraud_detection_code.zip \
+    spark_fraud_detection/ \
+    scripts/ \
+    pyproject.toml \
+    requirements.txt \
+    -x "**/__pycache__/*" "**/.git/*" "**/data/*" "**/output/*"
+
+  3. Upload to S3
+
+  # Upload code archive
+  aws s3 cp spark_fraud_detection_code.zip s3://your-bucket/emr-serverless/code/
+
+  # Upload requirements for EMR to install
+  aws s3 cp requirements.txt s3://your-bucket/emr-serverless/code/
+
+  EMR Serverless Job Submission Scripts
+
+● Write(scripts/submit_datagen_job.sh)
+  ⎿  Wrote 72 lines to scripts/submit_datagen_job.sh                               
+     #!/bin/bash
+     """
+     Submit data generation job to EMR Serverless
+     """
+     # Configuration
+     APPLICATION_ID="your-emr-serverless-app-id"
+     EXECUTION_ROLE_ARN="arn:aws:iam::your-account:role/EMRServerlessExecutionRole"
+     S3_BUCKET="your-s3-bucket"
+     S3_CODE_PREFIX="emr-serverless/code"
+     … +62 lines (ctrl+r to expand)
+
+● Write(scripts/submit_prediction_job.sh)
+  ⎿  Wrote 69 lines to scripts/submit_prediction_job.sh                            
+     #!/bin/bash
+     """
+     Submit fraud prediction/detection job to EMR Serverless
+     """
+     # Configuration
+     APPLICATION_ID="your-emr-serverless-app-id"
+     EXECUTION_ROLE_ARN="arn:aws:iam::your-account:role/EMRServerlessExecutionRole"
+     S3_BUCKET="your-s3-bucket"
+     S3_CODE_PREFIX="emr-serverless/code"
+     … +59 lines (ctrl+r to expand)
+
+● Write(scripts/setup_emr_serverless.sh)
+  ⎿  Wrote 139 lines to scripts/setup_emr_serverless.sh          
+     #!/bin/bash
+     """
+     Setup script for EMR Serverless application and dependencies
+     """
+     # Configuration
+     APP_NAME="fraud-detection-spark"
+     S3_BUCKET="your-s3-bucket"
+     EXECUTION_ROLE_NAME="EMRServerlessExecutionRole"
+     … +129 lines (ctrl+r to expand)
+
+● Bash(chmod +x /home/saladass/crafts/spark_fraud_detection/scripts/*.sh)
+  ⎿  (No content)
+
+● Update Todos
+  ⎿  ☒ Create EMR Serverless job scripts for data generation      
+     ☒ Create EMR Serverless job scripts for prediction
+     ☒ Create S3 deployment script to upload code and dependencies
+     ☒ Create requirements management for EMR Serverless
+     ☒ Create example job submission scripts
+
+● Upload Steps (using uv):
+
+  1. Export dependencies
+
+  uv export --format requirements-txt --no-hashes --output-file requirements.txt
+
+  2. Create code archive
+
+  zip -r spark_fraud_detection_code.zip \
+    spark_fraud_detection/ \
+    scripts/ \
+    pyproject.toml \
+    requirements.txt \
+    -x "**/__pycache__/*" "**/.git/*" "**/data/*" "**/output/*"
+
+  3. Upload to S3
+
+  aws s3 cp spark_fraud_detection_code.zip s3://your-bucket/emr-serverless/code/
+  aws s3 cp requirements.txt s3://your-bucket/emr-serverless/code/
+
+  Job Submission Scripts Created:
+
+  - scripts/setup_emr_serverless.sh - Complete setup script
+  - scripts/submit_datagen_job.sh - Submit data generation jobs
+  - scripts/submit_prediction_job.sh - Submit fraud detection jobs
+
+  Usage:
+
+  # Run setup (creates app, uploads code)
+  ./scripts/setup_emr_serverless.sh
+
+  # Submit data generation job (100k customers)
+  ./scripts/submit_datagen_job.sh 100000 2023-01-01 2023-12-31
+
+  # Submit fraud detection job
+  ./scripts/submit_prediction_job.sh s3://bucket/fraud-data
+
+> how the heck will emr serverless recognize the requirements.txt ?
+
+● You're absolutely right! EMR Serverless doesn't automatically install from requirements.txt. Here are the proper ways to handle dependencies:
+
+  Option 1: Package dependencies with your code (Recommended)
+
+  # Create a directory with dependencies
+  mkdir python-packages
+  pip install -r requirements.txt -t python-packages/
+
+  # Create archive with code and dependencies
+  zip -r spark_fraud_detection_with_deps.zip \
+    spark_fraud_detection/ \
+    scripts/ \
+    python-packages/ \
+    pyproject.toml
+
+  # Upload and use with --py-files
+  aws s3 cp spark_fraud_detection_with_deps.zip s3://bucket/emr-serverless/code/
+
+  Option 2: Use --py-files with dependency archive
+
+● Update(scripts/setup_emr_serverless.sh)
+  ⎿  (No changes)
+
+> how does EMR serverless install dependencies ?
+
+● EMR Serverless handles dependencies in these ways:
+
+  1. Pre-installed Packages
+
+  EMR Serverless comes with common packages already installed:
+  - pyspark, pandas, numpy, scipy, scikit-learn, boto3, matplotlib, seaborn
+  - Full list varies by EMR release version
+
+  2. Custom Dependencies via --py-files
+
+  Package your dependencies and upload them:
+
+  # Install to local directory
+  pip install -r requirements.txt -t ./python-deps/
+
+  # Create zip archive
+  zip -r python-deps.zip python-deps/
+
+  # Upload to S3
+  aws s3 cp python-deps.zip s3://bucket/deps/
+
+  # Use in job submission
+  "sparkSubmitParameters": "--py-files s3://bucket/deps/python-deps.zip"
+
+  3. Bootstrap Actions (Not available in Serverless)
+
+  Traditional EMR clusters support bootstrap actions, but EMR Serverless does not.
+
+  4. Container Images (Advanced)
+
+  You can build custom Docker images with dependencies:
+
+  FROM public.ecr.aws/emr-serverless/spark/emr-6.15.0:latest
+  USER root
+  RUN pip install -r requirements.txt
+  USER hadoop
+
+  5. --packages for Maven Dependencies
+
+  For Spark packages:
+  "sparkSubmitParameters": "--packages org.apache.hadoop:hadoop-aws:3.3.4"
+
+  Bottom line: For Python dependencies not pre-installed, you must package them yourself and use --py-files. There's no automatic requirements.txt installation like in regular
+  Python environments.
+
+> ok continue the setup script
+
+● Update(scripts/setup_emr_serverless.sh)
+  ⎿  Updated scripts/setup_emr_serverless.sh with 11 additions and 5 removals                          
+       25        echo "S3 bucket $S3_BUCKET already exists"
+       26    fi
+       27    
+       28 -  # Step 2: Export dependencies using uv
+       29 -  echo -e "${YELLOW}Step 2: Exporting dependencies...${NC}"
+       28 +  # Step 2: Export and package dependencies  
+       29 +  echo -e "${YELLOW}Step 2: Creating dependency package...${NC}"
+       30    uv export --format requirements-txt --no-hashes --output-file requirements.txt
+       31 -  echo "Dependencies exported to requirements.txt"
+       31    
+       32 +  # Install dependencies to local directory
+       33 +  mkdir -p python-deps
+       34 +  pip install -r requirements.txt -t python-deps/ --no-deps
+       35 +  
+       36 +  # Create dependency archive
+       37 +  zip -r python-deps.zip python-deps/
+       38 +  echo "Dependencies packaged in python-deps.zip"
+       39 +  
+       40    # Step 3: Create and upload code archive
+       41    echo -e "${YELLOW}Step 3: Creating code archive...${NC}"
+       42    zip -r spark_fraud_detection_code.zip \
+       43      spark_fraud_detection/ \
+       44      scripts/ \
+       45      pyproject.toml \
+       46 -    requirements.txt \
+       46      -x "**/__pycache__/*" "**/.git/*" "**/data/*" "**/output/*" "**/notebooks/*" "**/docs/*"
+       47    
+       48    # Step 4: Upload to S3
+       49    echo -e "${YELLOW}Step 4: Uploading to S3...${NC}"
+       50    aws s3 cp spark_fraud_detection_code.zip "s3://$S3_BUCKET/emr-serverless/code/"
+       51 -  aws s3 cp requirements.txt "s3://$S3_BUCKET/emr-serverless/code/"
+       51 +  aws s3 cp python-deps.zip "s3://$S3_BUCKET/emr-serverless/code/"
+       52    
+       53    echo -e "${GREEN}Code uploaded to: s3://$S3_BUCKET/emr-serverless/code/${NC}"
+       54    
+
+● Update(scripts/submit_datagen_job.sh)
+  ⎿  Updated scripts/submit_datagen_job.sh with 1 addition and 1 removal                                                                                                         
+       40            "--executor-cores", "4",
+       41            "--max-executors", "20"
+       42          ],
+       43 -        "sparkSubmitParameters": "--conf spark.executor.cores=4 --conf spark.executor.memory=4g --conf spark.driver.cores=2 --conf spark.driver.memory=2g --conf 
+     spark.executor.instances=10"
+          - spark.executor.instances=10"
+       43 +        "sparkSubmitParameters": "--py-files s3://'$S3_BUCKET'/'$S3_CODE_PREFIX'/python-deps.zip --conf spark.executor.cores=4 --conf spark.executor.memory=4g --conf 
+     spark.driver.cores=2 --conf spark.driver.memory=2g --conf spark.executor.instances=10"
+          + spark.driver.cores=2 --conf spark.driver.memory=2g --conf spark.executor.instances=10"
+       44        }
+       45      }' \
+       46      --configuration-overrides '{
+
+● Update(scripts/submit_prediction_job.sh)
+  ⎿  Updated scripts/submit_prediction_job.sh with 1 addition and 1 removal                                                                                                      
+       35            "--output-path", "'$MODEL_OUTPUT_PATH'",
+       36            "--predictions-path", "'$PREDICTIONS_PATH'"
+       37          ],
+       38 -        "sparkSubmitParameters": "--conf spark.executor.cores=4 --conf spark.executor.memory=6g --conf spark.driver.cores=2 --conf spark.driver.memory=4g --conf 
+     spark.executor.instances=15"
+          - spark.executor.instances=15"
+       38 +        "sparkSubmitParameters": "--py-files s3://'$S3_BUCKET'/'$S3_CODE_PREFIX'/python-deps.zip --conf spark.executor.cores=4 --conf spark.executor.memory=6g --conf 
+     spark.driver.cores=2 --conf spark.driver.memory=4g --conf spark.executor.instances=15"
+          + spark.driver.cores=2 --conf spark.driver.memory=4g --conf spark.executor.instances=15"
+       39        }
+       40      }' \
+       41      --configuration-overrides '{
+
+● Updated the scripts to properly handle dependencies via --py-files. Now EMR Serverless will:
+
+  1. Package dependencies: uv export → pip install -t python-deps/ → zip python-deps.zip
+  2. Upload both archives: Code + dependencies to S3
+  3. Use in jobs: --py-files s3://bucket/python-deps.zip tells Spark to add the dependency archive to Python path
+
+  The workflow is now:
+  ./scripts/setup_emr_serverless.sh  # Packages deps + uploads everything
+  ./scripts/submit_datagen_job.sh 50000  # Uses --py-files for deps
+  ./scripts/submit_prediction_job.sh  # Uses --py-files for deps
+
+
+
+
+
+

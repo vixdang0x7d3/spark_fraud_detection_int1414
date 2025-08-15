@@ -1,0 +1,32 @@
+customer_headers = [
+    "ssn",
+    "cc_num",
+    "first",
+    "last",
+    "gender",
+    "street",
+    "city",
+    "state",
+    "zip",
+    "lat",
+    "long",
+    "city_pop",
+    "job",
+    "dob",
+    "acct_num",
+    "profile",
+]
+
+
+transaction_headers = [
+    "trans_num",
+    "trans_date",
+    "trans_time",
+    "unix_time",
+    "category",
+    "amt",
+    "is_fraud",
+    "merchant",
+    "merch_lat",
+    "merch_long",
+]
