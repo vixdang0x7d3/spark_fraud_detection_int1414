@@ -10,6 +10,10 @@ wheels/
 .venv
 
 
+# lol
+CLAUDE.md
+claude-notes/
+
 # Secrets
 .env
 .env.*
